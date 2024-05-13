@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
+	<api-gateway:autodiscovery apiId="19375028" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="6e114244-c08d-4eeb-946d-96826d86a339" flowRef="event-routing-proc-main" />
+	<anypoint-mq:config name="Anypoint_MQ_Config" doc:name="Anypoint MQ Config" doc:id="67358aee-aea2-4a8b-8137-f7ce567ea49c" >
+				<anypoint-mq:connection url="https://mq-us-east-1.anypoint.mulesoft.com/api/v1/organizations/59cbbf43-f12b-4e68-b8b2-cef752adff1b/environments/3a9500be-8ab3-43c7-b8dc-4f210b85d6fe" clientId="c1fb39b3536d43cd907217471d7f268a" clientSecret="c11a075F5E2C4d9d96239D08fa12CD29" />
+	</anypoint-mq:config>
+
+</mule>

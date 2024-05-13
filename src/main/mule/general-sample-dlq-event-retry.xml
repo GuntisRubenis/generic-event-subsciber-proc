@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd">
+	<flow name="general-sample-dlq-event-retry-sub-flow" doc:id="abb3b6f1-8259-4220-b1d9-c65be5869527" >
+		<scheduler doc:name="Scheduler" doc:id="e22cb699-70b5-4ac1-8e8c-d4f2aa8af8a0" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" timeUnit="MINUTES" />
+			</scheduling-strategy>
+		</scheduler>
+		<scatter-gather doc:name="Check if all consumers are available" doc:id="bb16f0b3-84dd-46cb-93f9-033ad5ecfe51" >
+			<route >
+				<http:request method="GET" doc:name="lims-sys GET: /status" doc:id="e79510df-51e1-4c22-92e4-c82bbd82fa80" url="https://lims-sys-e90e7w.m3jzw3-2.deu-c1.cloudhub.io/api/status" />
+				<ee:transform doc:name="httpStatus" doc:id="505ca69f-2f7c-4c9c-a55b-e18e0da5acfc" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.statusCode]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route >
+				<logger level="INFO" doc:name="Place for another request " doc:id="1b7a3775-ec79-4fd1-a864-7111e00ca9b2" />
+				<ee:transform doc:name="httpStatus" doc:id="9269d60b-9775-41e8-8d30-279949675476" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+attributes.statusCode default 200]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="check if status codes are 20" doc:id="8ac135a7-840f-47f3-97a3-9e4ea15a42d4" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="commonHttpStatus" ><![CDATA[%dw 2.0
+output application/json
+---
+(payload mapObject ((value, key, index) -> {
+    (key): value.payload
+})) pluck $]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Check LIMS availability" doc:id="e8915c22-ad54-4055-b1c6-aeac72c94fb9" >
+			<when expression="#[%dw 2.0&#10;output application/json&#10;import * from dw::core::Arrays&#10;---&#10;vars.commonHttpStatus every ($ == 200)]" >
+				<ee:transform doc:name="set batch size" doc:id="a1241dfd-77c0-492e-8125-1eec606df116" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0 
+output application/json
+fun prepareList(list:Array, maxSize: Number) = if(sizeOf(list) >= maxSize )
+list
+else
+prepareList(list ++ [(sizeOf(list) + 1) as Number],maxSize)
+---
+prepareList([],10)]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<parallel-foreach doc:name="Parallel For Each" doc:id="f6b2100a-136c-4c44-af0c-9f5ecb0b5311" collection="#[payload]" >
+					<anypoint-mq:consume doc:name="general-sample-dlq" doc:id="ed0ffdf0-3cef-4131-914b-9d77a4b015a7" config-ref="Anypoint_MQ_Config" destination="general-sample-dlq" pollingTime="3000" outputMimeType="application/json" />
+					<ee:transform doc:name="mapp payload" doc:id="d65f2bbf-2d04-4a0a-9182-369fc5d16b8a" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"properties":{
+		"type": payload."type"
+	},
+	"body": payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<anypoint-mq:publish doc:name="general-sample-mq" doc:id="632c8ffa-f642-4142-8c7d-a20a923cab8f" config-ref="Anypoint_MQ_Config" destination="general-sample-mq" >
+						<anypoint-mq:body ><![CDATA[#[payload.body]]]></anypoint-mq:body>
+						<anypoint-mq:properties ><![CDATA[#[payload.properties]]]></anypoint-mq:properties>
+					</anypoint-mq:publish>
+				</parallel-foreach>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="LIMS not available" doc:id="2037998c-f648-4682-95ae-4da1fd40bc15" message='#["LIMS not available"]' />
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="4377027b-946e-45d2-a467-30cb2863020f" >
+				<logger level="INFO" doc:name="No Messges to consume" doc:id="815cfc1d-f22e-4a44-b8cc-fcecea08344f" message='"No messages to consume"' />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

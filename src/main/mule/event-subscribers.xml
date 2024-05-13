@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<flow name="general-sample-mq-subscriber-flow" doc:id="81aedb63-6e9e-4881-b263-3ef4028db96b" >
+		<anypoint-mq:subscriber doc:name="general-sample-mq" doc:id="8e6cbb18-00ad-4f13-85e6-f28d7fd856f4" destination="general-sample-mq" config-ref="Anypoint_MQ_Config"/>
+		<set-variable value='#["generic-samples"]' doc:name="flowName" doc:id="22d6ee36-4bbf-4be5-87c2-f13d12ae8622" variableName="flowName"/>
+		<logger level="INFO" doc:name="Flow start" doc:id="10528ed5-ebd3-4968-ad2a-1549033562f6" message='#["Flow start " ++ vars.flowName]'/>
+		<ee:transform doc:name="payloat to JSON" doc:id="b6ec7c12-bdae-4d61-a7d8-3d570486f881" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="log payload" doc:id="e86a5c1c-252e-4e7d-a329-35a9b28ba973" message="#[payload]"/>
+		<scatter-gather doc:name="Send event to all subscribers" doc:id="3b64d457-07e0-4220-9fda-814e9dc1e5f8" >
+			<route >
+				<http:request method="POST" doc:name="lims-sys POST:/samples" doc:id="726f0e84-8678-4e74-a287-0eb8dda93f41" url="https://lims-sys-e90e7w.m3jzw3-2.deu-c1.cloudhub.io/api/samples" />
+			</route>
+			<route >
+				<logger level="INFO" doc:name="Place for another subscriber" doc:id="90f8318c-7b68-4e9f-ab6d-52c184fbeba2" />
+			</route>
+		</scatter-gather>
+		<logger level="INFO" doc:name="Flow end" doc:id="c6ea1dba-2180-4535-9547-ed04536e145f" message='#["Flow end " ++ vars.flowName]'/>
+	</flow>
+</mule>
